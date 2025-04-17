@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Optimizing Routes For Buses</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+
+    <!-- Leaflet Routing Machine -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+    <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+
+    <!-- Nominatim Geocoder -->
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        #map {
+            height: 500px;
+            width: 90%;
+            margin: 20px auto;
+            border: 2px solid #333;
+        }
+        input, select, button {
+            padding: 8px;
+            margin: 5px;
+            width: 250px;
+        }
+        button {
+            cursor: pointer;
+            background-color: #28a745;
+            color: white;
+            border: none;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Find the Shortest & Longest Route</h2>
+    <input type="text" id="source" placeholder="Enter Source Location">
+    <input type="text" id="destination" placeholder="Enter Destination Location">
+    <input type="number" id="numPeople" placeholder="Enter Number of People" min="1" max="210" onchange="setNumBuses()">
+    <select id="numBuses" disabled>
+        <option value="1">1 Bus</option>
+        <option value="2">2 Buses</option>
+        <option value="3">3 Buses</option>
+    </select>
+    <button onclick="updateRoute()">Find Routes</button>
+
+    <br><br>
+    <button onclick="goToLiveTracker()">Go to Live Tracker</button>
+
+    <div id="map"></div>
+
+    <script>
+        let map = L.map("map").setView([9.9195, 78.1195], 13);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        let controlShortest = null;
+        let controlAlternate = null;
+        let controlThird = null;
+        let busMarker = null;
+        let animationInterval = null;
+
+        function setNumBuses() {
+            let numPeople = parseInt(document.getElementById("numPeople").value);
+            let numBuses = Math.ceil(numPeople / 70);
+            numBuses = Math.min(numBuses, 3);
+            document.getElementById("numBuses").value = numBuses;
+            document.getElementById("numBuses").disabled = false;
+        }
+
+        function updateRoute() {
+            let src = document.getElementById("source").value + ", Madurai, India";
+            let dest = document.getElementById("destination").value + ", Madurai, India";
+            let numBuses = parseInt(document.getElementById("numBuses").value);
+
+            if (!src || !dest) {
+                alert("Please enter valid source and destination!");
+                return;
+            }
+
+            function getCoordinates(place, callback) {
+                fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${place}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.length === 0) {
+                            alert(`Location not found: ${place}`);
+                            return;
+                        }
+                        let coordinates = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+                        callback(coordinates);
+                    });
+            }
+
+            getCoordinates(src, function(srcLatLng) {
+                getCoordinates(dest, function(destLatLng) {
+                    if (controlShortest) map.removeControl(controlShortest);
+                    if (controlAlternate) map.removeControl(controlAlternate);
+                    if (controlThird) map.removeControl(controlThird);
+                    if (busMarker) map.removeLayer(busMarker);
+                    if (animationInterval) clearInterval(animationInterval);
+
+                    let waypoints = [
+                        L.latLng(srcLatLng[0], srcLatLng[1]),
+                        L.latLng(destLatLng[0], destLatLng[1])
+                    ];
+
+                    // Shortest route (Red)
+                    controlShortest = L.Routing.control({
+                        waypoints: waypoints,
+                        routeWhileDragging: true,
+                        router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1' }),
+                        lineOptions: { styles: [{ color: "red", weight: 5 }] }
+                    }).addTo(map);
+
+                    if (numBuses >= 2) {
+                        // Alternate Route (Blue)
+                        controlAlternate = L.Routing.control({
+                            waypoints: waypoints.reverse(), // Slight variation in route
+                            routeWhileDragging: true,
+                            router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1' }),
+                            lineOptions: { styles: [{ color: "blue", weight: 5 }] }
+                        }).addTo(map);
+                    }
+
+                    if (numBuses === 3) {
+                        // Third Route (Green) with bus animation
+                        controlThird = L.Routing.control({
+                            waypoints: waypoints,
+                            routeWhileDragging: true,
+                            router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1' }),
+                            lineOptions: { styles: [{ color: "green", weight: 5 }] }
+                        }).addTo(map);
+
+                        animateBus(waypoints);
+                    }
+                });
+            });
+        }
+
+        function animateBus(waypoints) {
+            let index = 0;
+            let busIcon = L.icon({
+                iconUrl: 'https://img.icons8.com/emoji/48/bus-emoji.png',
+                iconSize: [30, 30]
+            });
+
+            busMarker = L.marker(waypoints[0], { icon: busIcon }).addTo(map);
+
+            animationInterval = setInterval(() => {
+                if (index < waypoints.length - 1) {
+                    busMarker.setLatLng(waypoints[index]);
+                    index++;
+                } else {
+                    clearInterval(animationInterval);
+                }
+            }, 1000);
+        }
+
+        function goToLiveTracker() {
+            window.location.href = "live-tracker.html";
+        }
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Location & Friend Tracker</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+
+    <!-- Leaflet Routing Machine -->
+    <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        #map {
+            height: 500px;
+            width: 90%;
+            margin: 20px auto;
+            border: 2px solid #333;
+        }
+        input, button {
+            padding: 8px;
+            margin: 5px;
+            width: 250px;
+        }
+        button {
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Live Location & Friend Tracker</h2>
+    <button onclick="goBack()">Back to Route Finder</button>
+
+    <h3>Find Your Friend</h3>
+    <input type="text" id="friendName" placeholder="Enter Friend's Name">
+    <button onclick="searchFriendLocation()">Find Friend</button>
+
+    <div id="map"></div>
+
+    <script>
+        let map = L.map("map").setView([9.9195, 78.1195], 13);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        let userMarker, friendMarker, routeControl;
+
+        let friends = {
+            "Ajay": [9.9252, 78.1198],
+            "Balaji": [9.9305, 78.1212],
+            "Chandru": [9.9351, 78.1228],
+            "Divya": [9.9223, 78.1169],
+            "Eshwar": [9.9277, 78.1184],
+            "Farhan": [9.9321, 78.1203],
+            "Ganesh": [9.9376, 78.1237],
+            "Harini": [9.9290, 78.1191],
+            "Irfan": [9.9215, 78.1178],
+            "Jeeva": [9.9248, 78.1189]
+        };
+
+        function getUserLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition(function (position) {
+                    let lat = position.coords.latitude;
+                    let lon = position.coords.longitude;
+
+                    if (!userMarker) {
+                        userMarker = L.marker([lat, lon], { icon: L.icon({ iconUrl: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png', iconSize: [30, 30] }) }).addTo(map);
+                        userMarker.bindPopup("You are here").openPopup();
+                    } else {
+                        userMarker.setLatLng([lat, lon]);
+                    }
+
+                    map.setView([lat, lon], 13);
+                });
+            }
+        }
+
+        function searchFriendLocation() {
+            let friendName = document.getElementById("friendName").value.trim();
+            if (!friends[friendName]) {
+                alert("Friend not found in the list!");
+                return;
+            }
+
+            let friendLatLng = friends[friendName];
+            if (friendMarker) map.removeLayer(friendMarker);
+            friendMarker = L.marker(friendLatLng, { icon: L.icon({ iconUrl: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png', iconSize: [30, 30] }) }).addTo(map);
+            friendMarker.bindPopup(friendName + " is here").openPopup();
+
+            if (routeControl) map.removeControl(routeControl);
+            
+            if (userMarker) {
+                let userLatLng = userMarker.getLatLng();
+                routeControl = L.Routing.control({
+                    waypoints: [L.latLng(userLatLng.lat, userLatLng.lng), L.latLng(friendLatLng[0], friendLatLng[1])],
+                    routeWhileDragging: true
+                }).addTo(map);
+            }
+        }
+
+        function goBack() {
+            window.location.href = "index.html";
+        }
+
+        getUserLocation();
+    </script>
+
+</body>
+</html>
