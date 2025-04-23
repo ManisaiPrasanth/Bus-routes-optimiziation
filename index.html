@@ -1,19 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Optimizing Routes For Buses</title>
 
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"/>
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
 
-    <!-- Leaflet Routing Machine -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+    <!-- Routing Machine -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css"/>
     <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
 
-    <!-- Nominatim Geocoder -->
+    <!-- Geocoder -->
     <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 
     <style>
@@ -46,8 +46,12 @@
 <body>
 
     <h2>Find the Shortest & Longest Route</h2>
-    <input type="text" id="source" placeholder="Enter Source Location">
-    <input type="text" id="destination" placeholder="Enter Destination Location">
+    <select id="source">
+        <option value="">Select Source</option>
+    </select>
+    <select id="destination">
+        <option value="">Select Destination</option>
+    </select>
     <input type="number" id="numPeople" placeholder="Enter Number of People" min="1" max="210" onchange="setNumBuses()">
     <select id="numBuses" disabled>
         <option value="1">1 Bus</option>
@@ -55,13 +59,36 @@
         <option value="3">3 Buses</option>
     </select>
     <button onclick="updateRoute()">Find Routes</button>
-
     <br><br>
     <button onclick="goToLiveTracker()">Go to Live Tracker</button>
 
     <div id="map"></div>
 
     <script>
+        const locations = [
+            "Madurai Railway Station", "Periyar Bus Stand", "Anna Nagar", "Tallakulam", "K.K. Nagar",
+            "Aarapalayam", "Goripalayam", "Thirunagar", "Palanganatham", "Kalavasal",
+            "Mellur", "Villapuram", "Mattuthavani", "Reserve Line", "Othakadai",
+            "Vandiyur", "Simmakkal", "Tirupparankundram", "TVS Nagar", "Thiruppalai",
+            "Thathaneri", "Yanaikkal", "Anuppanadi", "Keelavasal", "Karuppayurani",
+            "Vilangudi", "Koodal Nagar", "Kochadai", "Avaniyapuram", "Thiruparankundram Temple",
+            "Azhagar Kovil", "Madurai Kamaraj University", "Agricultural College", "Kalamegaperumal Temple", "South Gate",
+            "East Veli Street", "West Veli Street", "North Veli Street", "Goripalayam Mosque", "MGR Bus Stand",
+            "Periyar Statue", "Samayanallur", "Vadipatti", "Alanganallur", "Melur",
+            "Thirumangalam", "Usilampatti", "Kallikudi", "Tiruvedagam", "Sholavandan"
+        ];
+
+        window.onload = function () {
+            const sourceSelect = document.getElementById("source");
+            const destSelect = document.getElementById("destination");
+            locations.forEach(loc => {
+                const option1 = new Option(loc, loc);
+                const option2 = new Option(loc, loc);
+                sourceSelect.appendChild(option1);
+                destSelect.appendChild(option2.cloneNode(true));
+            });
+        };
+
         let map = L.map("map").setView([9.9195, 78.1195], 13);
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
             attribution: '&copy; OpenStreetMap contributors'
@@ -86,8 +113,8 @@
             let dest = document.getElementById("destination").value + ", Madurai, India";
             let numBuses = parseInt(document.getElementById("numBuses").value);
 
-            if (!src || !dest) {
-                alert("Please enter valid source and destination!");
+            if (!document.getElementById("source").value || !document.getElementById("destination").value) {
+                alert("Please select both source and destination!");
                 return;
             }
 
@@ -117,7 +144,7 @@
                         L.latLng(destLatLng[0], destLatLng[1])
                     ];
 
-                    // Shortest route (Red)
+                    // Shortest Route - Red
                     controlShortest = L.Routing.control({
                         waypoints: waypoints,
                         routeWhileDragging: true,
@@ -126,9 +153,9 @@
                     }).addTo(map);
 
                     if (numBuses >= 2) {
-                        // Alternate Route (Blue)
+                        // Alternate Route - Blue
                         controlAlternate = L.Routing.control({
-                            waypoints: waypoints.reverse(), // Slight variation in route
+                            waypoints: waypoints.reverse(),
                             routeWhileDragging: true,
                             router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1' }),
                             lineOptions: { styles: [{ color: "blue", weight: 5 }] }
@@ -136,7 +163,7 @@
                     }
 
                     if (numBuses === 3) {
-                        // Third Route (Green) with bus animation
+                        // Third Route - Green + Animation
                         controlThird = L.Routing.control({
                             waypoints: waypoints,
                             routeWhileDragging: true,
